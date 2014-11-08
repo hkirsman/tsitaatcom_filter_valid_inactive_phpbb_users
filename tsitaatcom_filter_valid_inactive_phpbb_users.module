@@ -1,0 +1,100 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function tsitaatcom_filter_valid_inactive_phpbb_users_menu() {
+  $items = array();
+
+  $items['admin/filter-phpbb-users'] = array(
+    'title' => 'Filter phpBB users',
+    'page callback' => 'tsitaatcom_filter_valid_inactive_phpbb_users_filter_phpbb_users',
+    'access arguments' => array('access administration pages'),
+  );
+
+  return $items;
+}
+
+/**
+ * Admin/filter-phpbb-users page callback.
+ *
+ * 7549 hetkel viimane kasutaja.
+ */
+function tsitaatcom_filter_valid_inactive_phpbb_users_filter_phpbb_users() {
+  $out = '';
+
+  //include_once(drupal_get_path('module', 'tsitaatcom_filter_valid_inactive_phpbb_users_menu_filter_phpbb_users'););
+
+  db_set_active('tsitaatcom');
+
+  $result = db_query('
+      SELECT
+        user_id,
+        user_ip,
+        username
+      FROM
+        phpbb_users
+      WHERE
+        user_type = 1
+      ORDER BY user_id DESC'
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+  db_set_active();
+
+  $i = 0;
+  $out .= 'start' . '<br>';
+  //for($i=0;$i<100;$i++) {
+  for($i=0;$i<count($result);$i++) {
+    preg_match('/\s([A-Z]{2})$/', exec('/usr/bin/whois -r ' . $result[$i]['user_ip'] . ' | grep -E \'country|Country\''), $matches);
+    $country = count($matches) > 0 ? $matches[1] : '';
+    if ($country == 'EE') {
+      $out .= '<span style="color: red">' . $result[$i]['user_id'] . ' ' . $country . ' = ' . $result[$i]['user_ip'] . ' ' . $result[$i]['username'] . '</span>' . '<br>';
+    } else {
+      $out .= $result[$i]['user_id'] . ' ' . $country . ' = ' . $result[$i]['user_ip'] . ' ' . $result[$i]['username'] . '<br>';
+    }
+
+    /*
+    // V1 - against online service.
+    $country = file_get_contents('http://api.hostip.info/country.php?ip=' . $result[$i]['user_ip']);
+    if ($country == 'EE') {
+      $out .= $country . ' = ' . $result[$i]['user_ip'] . ' ' . $result[$i]['username'] . '<br>';
+    }
+    */
+  }
+  $out .= 'end';
+  /*
+  foreach ($result as $row) {
+    $country = file_get_contents('http://api.hostip.info/country.php?ip=' . $row['user_ip']);
+    if ($country == 'EE') {
+      $out .= $country . ' = ' . $row['user_ip'] . ' ' . $row['username'] . '<br>';
+    }
+    $i++;
+    if ($i==130) {
+      break;
+    }
+  }
+  */
+
+  return $out;
+}
+
+
+function getLocationInfoByIp(){
+    $client  = @$_SERVER['HTTP_CLIENT_IP'];
+    $forward = @$_SERVER['HTTP_X_FORWARDED_FOR'];
+    $remote  = @$_SERVER['REMOTE_ADDR'];
+    $result  = array('country'=>'', 'city'=>'');
+    if(filter_var($client, FILTER_VALIDATE_IP)){
+        $ip = $client;
+    }elseif(filter_var($forward, FILTER_VALIDATE_IP)){
+        $ip = $forward;
+    }else{
+        $ip = $remote;
+    }
+    $ip_data = @json_decode(file_get_contents("http://www.geoplugin.net/json.gp?ip=".$ip));
+    if($ip_data && $ip_data->geoplugin_countryName != null){
+        $result['country'] = $ip_data->geoplugin_countryCode;
+        $result['city'] = $ip_data->geoplugin_city;
+    }
+    return $result;
+}

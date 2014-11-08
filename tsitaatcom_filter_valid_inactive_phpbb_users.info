@@ -1,0 +1,4 @@
+name = Tsitaat.com filter valid inactive phpbb users
+description = Check ip addresses against estonian ip database
+core = 7.x
+package = Tsitaat.com
